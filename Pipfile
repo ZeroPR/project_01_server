@@ -10,6 +10,7 @@ flask = "*"
 pyjwt = "*"
 pymongo = "*"
 flask-cors = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "2.7"

@@ -6,6 +6,7 @@ from flask_cors import CORS
 from datetime import timedelta, datetime
 import jwt
 from pymongo import MongoClient
+from dateutil import parser
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'A_N3w_w4y_t0_S33_th1ng5'
@@ -62,7 +63,29 @@ def login():
 
 @app.route('/home_data', methods=['GET', 'OPTIONS'])
 def obtener_data_home():
-    pass
+    year = datetime.today().year
+    documents = db.facturas.find({
+        '$expr': {
+            '$eq': [
+                {
+                    '$year': '$fecha_facturacion'
+                }, year
+            ]
+        }
+    }, {'_id': False})
+    dinero_cobrado = 0
+    facturas_cobradas = 0
+    for doc in documents:
+        if doc['cobrado']:
+            dinero_cobrado += doc['monto_total']
+            facturas_cobradas += 1
+
+    return jsonify({
+        'data': [x for x in documents],
+        'count': documents.count(),
+        'dinero_cobrado': dinero_cobrado,
+        'facturas_cobradas': facturas_cobradas
+    })
 
 # Create user [No terminado]
 @app.route('/usuarios/crear', methods=['POST', 'OPTIONS'])
@@ -84,6 +107,8 @@ def obtener_registros():
 @app.route('/registros/agregar', methods=['POST', 'OPTIONS'])
 def agregar_registros():
     data = request.get_json(force=True)
+    data['fecha_facturacion'] = parser.parse(data['fecha_facturacion'])
+    data['fecha_ajudicacion'] = parser.parse(data['fecha_ajudicacion'])
     db.facturas.insert_one(data)
     return jsonify({
         'message': 'Factura guardada.',
@@ -108,15 +133,16 @@ def borrar_registro(factura_id):
 # Editar datos de la base de datos.
 @app.route('/registros/editar/<string:factura_id>', methods=['POST', 'UPDATE', 'OPTIONS'])
 def editar_factura(factura_id):
-    data = request.get_json()
+    data = request.get_json(force=True)
+    # return jsonify(data)
+    # data_clean = [x for x in data]
     db.facturas.update_one(
-        {'factura_id': factura_id}, 
-        jsonify(data),
-        upsert=True)
+        {'id_factura': factura_id}, 
+        {'$set': data})
     facturas = db.facturas.find({}, {'_id': False})
     return jsonify({
-        'data': facturas,
-        'message': 'Factura actualizada.'
+        'message': 'Factura actualizada.',
+        'data': data
     })
 
 if __name__ == "__main__":
