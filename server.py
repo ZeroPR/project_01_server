@@ -87,6 +87,27 @@ def obtener_data_home():
         'facturas_cobradas': facturas_cobradas
     })
 
+@app.route('/obtener_facturas_por_fechas', methods=['POST', 'OPTIONS'])
+def busqueda_por_fechas():
+    data = request.get_json(force=True)
+    desde = parser.parse(data['desde']).isoformat()
+    hasta = parser.parse(data['hasta']).isoformat()
+    documents = db.facturas.find({
+        'fecha_ajudicacion': {
+            '$gte': desde,
+            '$lte': hasta
+        }
+    }, {'_id': False})
+    result = jsonify({
+        'data': [doc for doc in documents],
+        'results': 'ok',
+        'fechas': {
+            'desde': desde,
+            'hasta': hasta
+        }
+    })
+    return result
+
 # Create user [No terminado]
 @app.route('/usuarios/crear', methods=['POST', 'OPTIONS'])
 def crear_usuario():
@@ -107,8 +128,10 @@ def obtener_registros():
 @app.route('/registros/agregar', methods=['POST', 'OPTIONS'])
 def agregar_registros():
     data = request.get_json(force=True)
-    data['fecha_facturacion'] = parser.parse(data['fecha_facturacion'])
-    data['fecha_ajudicacion'] = parser.parse(data['fecha_ajudicacion'])
+    # data['fecha_facturacion'] = parser.parse(data['fecha_facturacion'])
+    # data['fecha_ajudicacion'] = parser.parse(data['fecha_ajudicacion'])
+    data['fecha_facturacion'] = datetime.strptime(data['fecha_facturacion'], "%Y-%m-%dT%H:%M:%S.000Z")
+    data['fecha_ajudicacion'] = datetime.strptime(data['fecha_ajudicacion'], "%Y-%m-%dT%H:%M:%S.000Z")
     db.facturas.insert_one(data)
     return jsonify({
         'message': 'Factura guardada.',
